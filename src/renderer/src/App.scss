@@ -1,0 +1,199 @@
+// 全局样式
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// 应用布局
+.app-layout {
+  height: 100vh;
+  overflow: hidden;
+}
+
+// 头部样式
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  background: #001529;
+  color: white;
+  height: 60px;
+  -webkit-app-region: drag; // 允许拖拽窗口
+
+  .app-header-left {
+    display: flex;
+    align-items: center;
+    
+    .app-header-logo {
+      width: 32px;
+      height: 32px;
+      margin-right: 12px;
+    }
+  }
+
+  .app-header-right {
+    display: flex;
+    align-items: center;
+    -webkit-app-region: no-drag; // 按钮区域不允许拖拽
+
+    .app-header-right-item {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.3s;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      img {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+}
+
+// 侧边栏样式
+.app-sidebar {
+  background: #001529;
+  
+  .sidebar-logo {
+    height: 80px;
+    margin-left: -40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    border-bottom: 1px solid #303030;
+    
+    h2 {
+      color: #27d3ba;
+      font-weight: 700;
+      font-size: 16px;
+      margin: 0;
+    }
+  }
+
+  .ant-menu {
+    background: #001529;
+    border-right: none;
+    
+    li.ant-menu-item {
+      color: rgba(255, 255, 255, 0.65);
+      
+      &:hover {
+        color: white ;
+        background-color: #1890ff !important;
+      }
+      
+      &.ant-menu-item-selected {
+        background-color: #1890ff;
+        color: white;
+      }
+    }
+  }
+}
+
+// 主内容区域
+.app-content {
+  padding: 20px;
+  background: #f0f2f5;
+  overflow-y: auto;
+  
+  .page-container {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// 卡片样式
+.stat-card {
+  text-align: center;
+  padding: 20px;
+  
+  .stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1890ff;
+    margin-bottom: 8px;
+  }
+  
+  .stat-label {
+    color: #666;
+    font-size: 14px;
+  }
+}
+
+// 表格样式
+.table-container {
+  .ant-table-thead > tr > th {
+    background: #fafafa;
+    font-weight: 600;
+  }
+}
+
+// 表单样式
+.form-container {
+  max-width: 600px;
+  margin: 0 auto;
+  
+  .ant-form-item-label {
+    font-weight: 500;
+  }
+}
+
+// 按钮组样式
+.button-group {
+  margin-bottom: 16px;
+  
+  .ant-btn {
+    margin-right: 8px;
+  }
+}
+
+// 搜索区域样式
+.search-area {
+  background: white;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .app-sidebar {
+    width: 100% !important;
+    position: fixed;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+    
+    &.open {
+      transform: translateX(0);
+    }
+  }
+  
+  .app-content {
+    margin-left: 0;
+  }
+} 
+.balance-after{
+  color: red;
+}
