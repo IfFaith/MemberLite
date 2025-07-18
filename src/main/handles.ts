@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron'
 import { dbManager } from './database'
+import { shell } from 'electron'
+import path from 'path'
 
 /**
  * 注册所有IPC处理器
@@ -25,6 +27,9 @@ export function registerWebHandles(): void {
 
   // 通知相关
   registerNotificationHandles()
+
+  // 员工管理相关
+  registerEmployeeHandles()
 }
 
 /**
@@ -36,7 +41,7 @@ function registerMemberHandles(): void {
     try {
       const members = await dbManager.all('SELECT * FROM members ORDER BY created_at DESC')
       return { success: true, data: members }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -82,7 +87,7 @@ function registerMemberHandles(): void {
         // 执行查询
         const members = await dbManager.all(query, params)
         return { success: true, data: members }
-      } catch (error:any) {
+      } catch (error: any) {
         return { success: false, error: (error as Error).message }
       }
     }
@@ -93,7 +98,7 @@ function registerMemberHandles(): void {
     try {
       const member = await dbManager.get('SELECT * FROM members WHERE id = ?', [id])
       return { success: true, data: member }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -103,7 +108,7 @@ function registerMemberHandles(): void {
     try {
       const member = await dbManager.get('SELECT * FROM members WHERE phone = ?', [phone])
       return { success: true, data: member }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -123,7 +128,7 @@ function registerMemberHandles(): void {
         ]
       )
       return { success: true, data: { id: result.id } }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -143,7 +148,7 @@ function registerMemberHandles(): void {
         ]
       )
       return { success: true }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -153,7 +158,7 @@ function registerMemberHandles(): void {
     try {
       await dbManager.run('DELETE FROM members WHERE id = ?', [id])
       return { success: true }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -166,13 +171,16 @@ ipcMain.handle('get-member-transactions', async (_, memberId: number) => {
         t.*,
         s.name as service_name,
         s.price as service_price,
-        m.name as member_name
+        m.name as member_name,
+        e.name as operator_name
       FROM 
         transactions t
       LEFT JOIN 
         services s ON t.service_id = s.id
       JOIN 
         members m ON t.member_id = m.id
+      LEFT JOIN
+        employees e ON t.operator_id = e.id
       WHERE 
         t.member_id = ?
       ORDER BY 
@@ -181,7 +189,7 @@ ipcMain.handle('get-member-transactions', async (_, memberId: number) => {
 
     const transactions = await dbManager.all(query, [memberId])
     return { success: true, data: transactions }
-  } catch (error:any) {
+  } catch (error: any) {
     return { success: false, error: (error as Error).message }
   }
 })
@@ -195,7 +203,7 @@ function registerServiceHandles(): void {
     try {
       const services = await dbManager.all('SELECT * FROM services ORDER BY category, name')
       return { success: true, data: services }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -215,7 +223,7 @@ function registerServiceHandles(): void {
         ]
       )
       return { success: true, data: { id: result.id } }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -236,7 +244,7 @@ function registerServiceHandles(): void {
         ]
       )
       return { success: true }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -246,7 +254,7 @@ function registerServiceHandles(): void {
     try {
       await dbManager.run('DELETE FROM services WHERE id = ?', [id])
       return { success: true }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -260,10 +268,11 @@ function registerTransactionHandles(): void {
   ipcMain.handle('get-transactions', async (_, filters: any = {}) => {
     try {
       let sql = `
-        SELECT t.*, m.name as member_name, m.phone as member_phone, s.name as service_name 
+        SELECT t.*, m.name as member_name, m.phone as member_phone, s.name as service_name, e.name as operator_name
         FROM transactions t 
         LEFT JOIN members m ON t.member_id = m.id 
-        LEFT JOIN services s ON t.service_id = s.id 
+        LEFT JOIN services s ON t.service_id = s.id
+        LEFT JOIN employees e ON t.operator_id = e.id
         WHERE 1=1
       `
       const params: any[] = []
@@ -287,7 +296,7 @@ function registerTransactionHandles(): void {
 
       const transactions = await dbManager.all(sql, params)
       return { success: true, data: transactions }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -319,9 +328,23 @@ function registerTransactionHandles(): void {
         transactionData.memberId
       ])
 
-      // 创建交易记录
+      // 1. 获取操作员信息（如果存在）
+      let commissionAmount = 0
+      if (transactionData.operatorId) {
+        // 2. 获取项目提成比例
+        const projectCommission = await dbManager.get(
+          'SELECT commission FROM project_commissions WHERE project_id = ? AND employee_id = ?',
+          [transactionData.serviceId, transactionData.operatorId]
+        )
+        if (projectCommission && projectCommission.commission > 0) {
+          // 3. 计算提成金额
+          commissionAmount = transactionData.amount * (projectCommission.commission / 100.0)
+        }
+      }
+
+      // 4. 创建交易记录
       const result = await dbManager.run(
-        'INSERT INTO transactions (member_id, service_id, amount, balance_before, balance_after, transaction_type, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO transactions (member_id, service_id, amount, balance_before, balance_after, transaction_type, operator_id, commission_amount, remark) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           transactionData.memberId,
           transactionData.serviceId,
@@ -329,6 +352,8 @@ function registerTransactionHandles(): void {
           balanceBefore,
           balanceAfter,
           '消费',
+          transactionData.operatorId,
+          commissionAmount, // 保存计算好的提成
           transactionData.remark
         ]
       )
@@ -337,7 +362,7 @@ function registerTransactionHandles(): void {
       await dbManager.run('COMMIT')
 
       return { success: true, data: { id: result.id, balanceAfter } }
-    } catch (error:any) {
+    } catch (error: any) {
       // 回滚事务
       await dbManager.run('ROLLBACK')
       return { success: false, error: error.message }
@@ -353,9 +378,10 @@ function registerRechargeHandles(): void {
   ipcMain.handle('get-recharges', async (_, filters: any = {}) => {
     try {
       let sql = `
-        SELECT r.*, m.name as member_name, m.phone as member_phone 
+        SELECT r.*, m.name as member_name, m.phone as member_phone, e.name as operator_name
         FROM recharges r 
-        LEFT JOIN members m ON r.member_id = m.id 
+        LEFT JOIN members m ON r.member_id = m.id
+        LEFT JOIN employees e ON r.operator_id = e.id
         WHERE 1=1
       `
       const params: any[] = []
@@ -369,7 +395,7 @@ function registerRechargeHandles(): void {
 
       const recharges = await dbManager.all(sql, params)
       return { success: true, data: recharges }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -397,28 +423,41 @@ function registerRechargeHandles(): void {
         rechargeData.memberId
       ])
 
-      // 创建充值记录
+      // 1. 获取操作员信息和其充值提成比例
+      let commissionAmount = 0
+      if (rechargeData.operatorId) {
+        const operator = await dbManager.get('SELECT recharge_commission FROM employees WHERE id = ?', [rechargeData.operatorId])
+        if (operator && operator.recharge_commission > 0) {
+          // 2. 计算提成金额
+          commissionAmount = rechargeData.amount * (operator.recharge_commission / 100.0)
+        }
+      }
+
+      // 3. 创建充值记录
       const result = await dbManager.run(
-        'INSERT INTO recharges (member_id, amount, payment_method, operator, remark) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO recharges (member_id, amount, payment_method, operator_id, commission_amount, remark) VALUES (?, ?, ?, ?, ?, ?)',
         [
           rechargeData.memberId,
           rechargeData.amount,
           rechargeData.paymentMethod,
-          rechargeData.operator,
+          rechargeData.operatorId,
+          commissionAmount, // 保存计算好的提成
           rechargeData.remark
         ]
       )
 
       // 创建余额变动记录
       await dbManager.run(
-        'INSERT INTO transactions (member_id, service_id, amount, balance_before, balance_after, transaction_type, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO transactions (member_id, service_id, amount, balance_before, balance_after, transaction_type, operator_id, commission_amount, remark) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           rechargeData.memberId,
-          0,
+          0, // service_id 为 0 表示非服务项目，即充值
           rechargeData.amount,
           balanceBefore,
           balanceAfter,
           '充值',
+          rechargeData.operatorId,
+          0, // 充值操作在 transaction 表中的提成记为0，真实提成在 recharges 表中
           rechargeData.remark
         ]
       )
@@ -427,7 +466,7 @@ function registerRechargeHandles(): void {
       await dbManager.run('COMMIT')
 
       return { success: true, data: { id: result.id, balanceAfter } }
-    } catch (error:any) {
+    } catch (error: any) {
       // 回滚事务
       await dbManager.run('ROLLBACK')
       return { success: false, error: error.message }
@@ -539,7 +578,52 @@ function registerReportHandles(): void {
           serviceStats
         }
       }
-    } catch (error:any) {
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 员工提成报表
+  ipcMain.handle('get-employee-commissions-report', async (_event, dateRange: any = {}) => {
+    try {
+      const params: any[] = []
+      let dateFilter = ''
+
+      if (dateRange.startDate) {
+        dateFilter += ` AND DATE(created_at) >= ?`
+        params.push(dateRange.startDate)
+      }
+      if (dateRange.endDate) {
+        dateFilter += ` AND DATE(created_at) <= ?`
+        params.push(dateRange.endDate)
+      }
+
+      const sql = `
+        SELECT
+            e.id as employee_id,
+            e.name,
+            (
+                SELECT COALESCE(SUM(commission_amount), 0)
+                FROM transactions
+                WHERE operator_id = e.id AND transaction_type = '消费' ${dateFilter.replace(/created_at/g, 'transactions.created_at')}
+            ) as project_commission,
+            (
+                SELECT COALESCE(SUM(commission_amount), 0)
+                FROM recharges
+                WHERE operator_id = e.id ${dateFilter.replace(/created_at/g, 'recharges.created_at')}
+            ) as recharge_commission,
+            (
+                SELECT COUNT(*)
+                FROM transactions
+                WHERE operator_id = e.id AND transaction_type = '消费' ${dateFilter.replace(/created_at/g, 'transactions.created_at')}
+            ) as service_count
+        FROM employees e
+        GROUP BY e.id, e.name
+        ORDER BY e.id
+      `
+      const report = await dbManager.all(sql, [...params, ...params, ...params]) // 参数需要重复
+      return { success: true, data: report }
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   })
@@ -582,7 +666,7 @@ function registerDataHandles(): void {
           fileSize: fs.statSync(backupPath).size
         }
       }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -618,7 +702,7 @@ function registerDataHandles(): void {
         .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())
 
       return { success: true, data: files }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -665,7 +749,7 @@ function registerDataHandles(): void {
           currentBackupPath
         }
       }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -682,10 +766,22 @@ function registerDataHandles(): void {
       fs.unlinkSync(backupFilePath)
 
       return { success: true, data: { message: '备份文件删除成功' } }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
+
+  // 打开数据文件所在目录
+  ipcMain.handle('open-data-directory', async () => {
+    try {
+      const dbPath = dbManager.getDbPath();
+      const directory = path.dirname(dbPath);
+      shell.openPath(directory);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 /**
@@ -718,7 +814,7 @@ function registerNotificationHandles(): void {
       } else {
         return { success: false, error: '系统不支持通知' }
       }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -789,8 +885,95 @@ function registerNotificationHandles(): void {
       }, options.duration || 3000)
 
       return { success: true }
-    } catch (error:any) {
+    } catch (error: any) {
       return { success: false, error: (error as Error).message }
     }
   })
+}
+
+function registerEmployeeHandles(): void {
+  // 员工管理相关IPC
+  ipcMain.handle('get-employees', async () => {
+    try {
+      const employees = await dbManager.all('SELECT * FROM employees ORDER BY id DESC')
+      return { success: true, data: employees }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  ipcMain.handle('add-employee', async (_event, employee) => {
+    try {
+      const { name, phone, entry_date, remark, status, recharge_commission } = employee
+      const result = await dbManager.run(
+        'INSERT INTO employees (name, phone, entry_date, remark, status, recharge_commission) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, phone, entry_date, remark, status || '在职', recharge_commission || 0]
+      )
+      return { success: true, data: { id: result.id } }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  ipcMain.handle('update-employee', async (_event, id, employee) => {
+    try {
+      const { name, phone, entry_date, remark, status, recharge_commission } = employee
+      await dbManager.run(
+        'UPDATE employees SET name=?, phone=?, entry_date=?, remark=?, status=?, recharge_commission=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+        [name, phone, entry_date, remark, status, recharge_commission, id]
+      )
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  ipcMain.handle('delete-employee', async (_event, id) => {
+    try {
+      await dbManager.run('DELETE FROM employees WHERE id=?', [id])
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 获取某项目下所有员工的提成比例
+  ipcMain.handle('get-project-commissions', async (_event, projectId) => {
+    try {
+      const commissions = await dbManager.all(
+        `SELECT e.id as employee_id, e.name, e.phone, pc.commission
+       FROM employees e
+       LEFT JOIN project_commissions pc ON e.id = pc.employee_id AND pc.project_id = ?
+       ORDER BY e.id DESC`,
+        [projectId]
+      )
+      return { success: true, data: commissions }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  // 设置某项目某员工的提成比例
+  ipcMain.handle(
+    'set-project-commission',
+    async (_event, { project_id, employee_id, commission }) => {
+      try {
+        // 先查是否已存在
+        const exist = await dbManager.get(
+          'SELECT id FROM project_commissions WHERE project_id=? AND employee_id=?',
+          [project_id, employee_id]
+        )
+        if (exist) {
+          await dbManager.run(
+            'UPDATE project_commissions SET commission=?, updated_at=CURRENT_TIMESTAMP WHERE project_id=? AND employee_id=?',
+            [commission, project_id, employee_id]
+          )
+        } else {
+          await dbManager.run(
+            'INSERT INTO project_commissions (project_id, employee_id, commission) VALUES (?, ?, ?)',
+            [project_id, employee_id, commission]
+          )
+        }
+        return { success: true }
+      } catch (error: any) {
+        return { success: false, error: error.message }
+      }
+    }
+  )
 }

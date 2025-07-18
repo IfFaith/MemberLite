@@ -9,6 +9,7 @@ import Recharge from './pages/Recharge'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import EmployeeManagement from './pages/EmployeeManagement'
 import './App.scss'
 
 const { Content } = Layout
@@ -23,7 +24,7 @@ function App(): React.JSX.Element {
     // 例如: /D:/members 或 /C:/path/to/app/members
     // 我们需要提取最后的相对路径部分
     const pathParts = fullPath.split('/')
-    
+
     // 查找最后一个有效的路径段
     for (let i = pathParts.length - 1; i >= 0; i--) {
       const part = pathParts[i]
@@ -32,7 +33,7 @@ function App(): React.JSX.Element {
         return '/' + pathParts.slice(i).join('/')
       }
     }
-    
+
     // 如果没有找到有效路径，返回根路径
     return '/'
   }
@@ -54,7 +55,16 @@ function App(): React.JSX.Element {
 
     // 初始化当前路径
     const initialPath = getRelativePath(window.location.pathname)
-    const validPaths = ['/', '/members', '/services', '/consumption', '/recharge', '/reports', '/settings']
+    const validPaths = [
+      '/',
+      '/members',
+      '/services',
+      '/consumption',
+      '/recharge',
+      '/reports',
+      'employeemanagement',
+      '/settings'
+    ]
     if (!validPaths.includes(initialPath)) {
       window.history.pushState({}, '', '/')
       setCurrentPath('/')
@@ -64,7 +74,7 @@ function App(): React.JSX.Element {
 
     // 监听popstate事件（浏览器前进后退）
     window.addEventListener('popstate', handleRouteChange)
-    
+
     // 监听自定义路由变化事件
     window.addEventListener('routeChange', handleRouteChange)
 
@@ -96,6 +106,8 @@ function App(): React.JSX.Element {
         return <Recharge />
       case '/reports':
         return <Reports />
+      case '/employeemanagement':
+        return <EmployeeManagement />
       case '/settings':
         return <Settings />
       default:
@@ -105,7 +117,7 @@ function App(): React.JSX.Element {
         return <Dashboard />
     }
   }
-  
+
   // 未登录时只显示登录页面
   if (!isLoggedIn) {
     return <Login onLogin={() => setIsLoggedIn(true)} />

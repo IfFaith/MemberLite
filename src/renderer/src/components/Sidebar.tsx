@@ -22,7 +22,7 @@ const Sidebar: React.FC = () => {
     // 处理Electron应用中的路径问题
     const pathParts = pathname.split('/')
     let cleanPath = '/'
-    
+
     // 查找最后一个有效的路径段
     for (let i = pathParts.length - 1; i >= 0; i--) {
       const part = pathParts[i]
@@ -31,13 +31,22 @@ const Sidebar: React.FC = () => {
         break
       }
     }
-    
+
     // 如果路径不在菜单项中，默认选中总览
-    const validPaths = ['/', '/members', '/services', '/consumption', '/recharge', '/reports', '/settings']
+    const validPaths = [
+      '/',
+      '/members',
+      '/services',
+      '/consumption',
+      '/recharge',
+      '/reports',
+      '/employeemanagement',
+      '/settings'
+    ]
     if (!validPaths.includes(cleanPath)) {
       cleanPath = '/'
     }
-    
+
     setSelectedKey(cleanPath)
   }, [])
 
@@ -73,6 +82,11 @@ const Sidebar: React.FC = () => {
       label: '统计报表'
     },
     {
+      key: '/employeemanagement',
+      icon: <UserOutlined />,
+      label: '员工管理'
+    },
+    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: '系统设置'
@@ -92,7 +106,7 @@ const Sidebar: React.FC = () => {
   return (
     <Sider width={200} className="app-sidebar">
       <div className="sidebar-logo">
-        <img src={logo} alt="" width={80}/>
+        <img src={logo} alt="" width={80} />
         <h2>貔貅会员管理</h2>
       </div>
       <Menu
@@ -106,4 +120,4 @@ const Sidebar: React.FC = () => {
   )
 }
 
-export default Sidebar 
+export default Sidebar

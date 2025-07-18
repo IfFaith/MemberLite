@@ -24,6 +24,11 @@ interface Service {
   status: string
 }
 
+interface Employee {
+  id: number
+  name: string
+}
+
 // interface Transaction {
 //   id: number
 //   member_name: string
@@ -42,6 +47,7 @@ const Consumption: React.FC = () => {
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
+  const [employees, setEmployees] = useState<Employee[]>([])
 
   useEffect(() => {
     loadData()
@@ -50,9 +56,10 @@ const Consumption: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [membersResult, servicesResult] = await Promise.all([
+      const [membersResult, servicesResult, employeesResult] = await Promise.all([
         window.electronAPI.getMembers(),
         window.electronAPI.getServices(),
+        window.electronAPI.getEmployees(),
       ])
 
       if (membersResult.success && membersResult.data) {
@@ -61,6 +68,10 @@ const Consumption: React.FC = () => {
 
       if (servicesResult.success && servicesResult.data) {
         setServices(servicesResult.data.filter((s: Service) => s.status === '启用'))
+      }
+
+      if (employeesResult.success && employeesResult.data) {
+        setEmployees(employeesResult.data)
       }
     } catch (error) {
       console.error('加载数据失败:', error)
@@ -73,7 +84,7 @@ const Consumption: React.FC = () => {
   const handleMemberChange = (memberId: number) => {
     const member = members.find((m) => m.id === memberId)
     setSelectedMember(member || null)
-    form.setFieldsValue({ serviceId: undefined, amount: undefined })
+    form.setFieldsValue({ serviceId: undefined, amount: undefined, operator: undefined })
     setSelectedService(null)
   }
 
@@ -113,7 +124,8 @@ const Consumption: React.FC = () => {
         memberId: selectedMember.id,
         serviceId: selectedService.id,
         amount: price,
-        remark: values.remark || ''
+        remark: values.remark || '',
+        operatorId: values.operator
       })
 
       if (result.success) {
@@ -224,6 +236,20 @@ const Consumption: React.FC = () => {
 
               <Form.Item name="remark" label="备注">
                 <Input.TextArea rows={3} placeholder="请输入备注信息" />
+              </Form.Item>
+
+              <Form.Item
+                name="operator"
+                label="操作员"
+                rules={[{ required: true, message: '请选择操作员' }]}
+              >
+                <Select placeholder="请选择操作员">
+                  {employees.map((emp) => (
+                    <Select.Option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
 
               <Form.Item>

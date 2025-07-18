@@ -162,6 +162,13 @@ const Settings: React.FC = () => {
     }
   }
 
+  const handleOpenDataDirectory = async () => {
+    const result = await window.electronAPI.openDataDirectory();
+    if (!result.success) {
+        toast.error('打开失败: ' + result.error);
+    }
+  };
+
   const backupColumns = [
     {
       title: '文件名',
@@ -372,7 +379,7 @@ const Settings: React.FC = () => {
 
         <Col xs={24} lg={8}>
           <Card title="数据管理">
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <Button
                 block
                 type="primary"
@@ -385,6 +392,19 @@ const Settings: React.FC = () => {
               <Button block onClick={() => setBackupModalVisible(true)} icon={<FileTextOutlined />}>
                 备份管理
               </Button>
+              <Row align="middle" justify="space-between">
+                <Col>
+                  <p style={{ margin: 0 }}><strong>打开数据目录</strong></p>
+                  <p style={{ margin: 0, color: '#888' }}>
+                    直接在文件管理器中打开数据文件(.db)所在的文件夹，方便手动备份或清理。
+                  </p>
+                </Col>
+                <Col>
+                  <Button onClick={handleOpenDataDirectory}>
+                    打开目录
+                  </Button>
+                </Col>
+              </Row>
             </Space>
 
             <Divider />

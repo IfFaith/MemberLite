@@ -1,6 +1,7 @@
 declare global {
   interface Window {
     electronAPI: {
+      openDataDirectory:  () => Promise<{ success: boolean; data?: any[]; error?: string }>
       // 会员管理
       getMembers: (filters?: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
       getMembersBySearchform: (searchForm: {
@@ -9,7 +10,10 @@ declare global {
       getMemberById: (id: number) => Promise<{ success: boolean; data?: any; error?: string }>
       getMemberByPhone: (phone: string) => Promise<{ success: boolean; data?: any; error?: string }>
       addMember: (member: any) => Promise<{ success: boolean; data?: any; error?: string }>
-      updateMember: (id: number, member: any) => Promise<{ success: boolean; data?: any; error?: string }>
+      updateMember: (
+        id: number,
+        member: any
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
       deleteMember: (id: number) => Promise<{ success: boolean; data?: any; error?: string }>
       getMemberTransactions: (
         id: number
@@ -18,12 +22,39 @@ declare global {
       getServices: (filters?: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
       getServiceById: (id: number) => Promise<{ success: boolean; data?: any; error?: string }>
       addService: (service: any) => Promise<{ success: boolean; data?: any; error?: string }>
-      updateService: (id: number, service: any) => Promise<{ success: boolean; data?: any; error?: string }>
+      updateService: (
+        id: number,
+        service: any
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
       deleteService: (id: number) => Promise<{ success: boolean; data?: any; error?: string }>
+      getEmployeeCommissionsReport: (
+        dataRange: any[]
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
+
+      // 员工管理
+      getEmployees: (filters?: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
+      addEmployee: (service: any) => Promise<{ success: boolean; data?: any; error?: string }>
+      updateEmployee: (
+        id: number,
+        service: any
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
+      deleteEmployee: (
+        id: number
+      ) => (id: number) => Promise<{ success: boolean; data?: any; error?: string }>
+      getProjectCommissions: (
+        id: number
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
+      setProjectCommission: (
+        service: any
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
 
       // 交易记录
-      getTransactions: (filters?: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
-      createTransaction: (transaction: any) => Promise<{ success: boolean; data?: any; error?: string }>
+      getTransactions: (
+        filters?: any
+      ) => Promise<{ success: boolean; data?: any[]; error?: string }>
+      createTransaction: (
+        transaction: any
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
 
       // 充值记录
       getRecharges: (filters?: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
@@ -35,12 +66,26 @@ declare global {
       // 数据管理
       backupDatabase: () => Promise<{ success: boolean; data?: any; error?: string }>
       getBackupFiles: () => Promise<{ success: boolean; data?: any[]; error?: string }>
-      restoreDatabase: (backupFilePath: string) => Promise<{ success: boolean; data?: any; error?: string }>
-      deleteBackup: (backupFilePath: string) => Promise<{ success: boolean; data?: any; error?: string }>
+      restoreDatabase: (
+        backupFilePath: string
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
+      deleteBackup: (
+        backupFilePath: string
+      ) => Promise<{ success: boolean; data?: any; error?: string }>
 
       // 通知功能
-      showNotification: (options: { title?: string; message: string; icon?: string; silent?: boolean; duration?: number }) => Promise<{ success: boolean; error?: string }>
-      showToast: (options: { message: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => Promise<{ success: boolean; error?: string }>
+      showNotification: (options: {
+        title?: string
+        message: string
+        icon?: string
+        silent?: boolean
+        duration?: number
+      }) => Promise<{ success: boolean; error?: string }>
+      showToast: (options: {
+        message: string
+        type?: 'success' | 'error' | 'warning' | 'info'
+        duration?: number
+      }) => Promise<{ success: boolean; error?: string }>
 
       // 应用控制
       app: {

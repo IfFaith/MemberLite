@@ -12,7 +12,8 @@ import {
   Row,
   Col,
   Tag,
-  InputNumber
+  InputNumber,
+  Tabs,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { toast } from '../components/Toast'
@@ -37,10 +38,19 @@ const ServiceManagement: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingService, setEditingService] = useState<Service | null>(null)
   const [form] = Form.useForm()
+  const [activeTab, setActiveTab] = useState('base')
+  const [employeeCommissions, setEmployeeCommissions] = useState<any[]>([])
+  const [commissionLoading, setCommissionLoading] = useState(false)
 
   useEffect(() => {
     loadServices()
   }, [])
+
+  useEffect(() => {
+    if (modalVisible && editingService) {
+      fetchCommissions(editingService.id)
+    }
+  }, [modalVisible, editingService])
 
   const loadServices = async () => {
     try {
@@ -59,10 +69,22 @@ const ServiceManagement: React.FC = () => {
     }
   }
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     setEditingService(null)
     form.resetFields()
     setModalVisible(true)
+    setActiveTab('base')
+    // 新增时加载所有员工，提成比例为0
+    const result = await window.electronAPI.getEmployees()
+    const employees = result && result.success && result.data ? result.data : []
+    setEmployeeCommissions(
+      employees.map((emp: any) => ({
+        employee_id: emp.id,
+        name: emp.name,
+        phone: emp.phone,
+        commission: 0
+      }))
+    )
   }
 
   const handleEdit = (record: Service) => {
@@ -86,11 +108,15 @@ const ServiceManagement: React.FC = () => {
     }
   }
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async () => {
     try {
+      const values = await form.validateFields()
+      // 只保留需要的字段，转换日期为字符串（如有）
+      const submitValues = { ...values }
+      // 如果有日期字段，转为字符串
       if (editingService) {
         // 更新服务项目
-        const result = await window.electronAPI.updateService(editingService.id, values)
+        const result = await window.electronAPI.updateService(editingService.id, submitValues)
         if (result.success) {
           toast.success('更新成功')
           setModalVisible(false)
@@ -102,7 +128,7 @@ const ServiceManagement: React.FC = () => {
         }
       } else {
         // 添加服务项目
-        const result = await window.electronAPI.addService(values)
+        const result = await window.electronAPI.addService(submitValues)
         if (result.success) {
           toast.success('添加成功')
           setModalVisible(false)
@@ -115,6 +141,34 @@ const ServiceManagement: React.FC = () => {
     } catch (error) {
       console.error('操作失败:', error)
     }
+  }
+
+  const fetchCommissions = async (projectId: number) => {
+    setCommissionLoading(true)
+    const res = await window.electronAPI.getProjectCommissions(projectId)
+    setEmployeeCommissions((res.data || []) as any)
+    setCommissionLoading(false)
+  }
+
+  const handleCommissionChange = (idx: number, value: number) => {
+    setEmployeeCommissions(prev => {
+      const arr = [...prev]
+      arr[idx] = { ...arr[idx], commission: value }
+      return arr
+    })
+  }
+
+  const saveCommissions = async () => {
+    if (!editingService) return
+    for (const emp of employeeCommissions) {
+      await window.electronAPI.setProjectCommission({
+        project_id: editingService.id,
+        employee_id: emp.employee_id,
+        commission: emp.commission || 0
+      })
+    }
+    toast.success('员工提成设置已保存')
+    fetchCommissions(editingService.id)
   }
 
   const columns = [
@@ -224,98 +278,129 @@ const ServiceManagement: React.FC = () => {
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            status: '启用'
-          }}
-        >
-          <Row gutter={16}>
-            <Col span={12}>
+        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+          <Tabs.TabPane tab="基本信息" key="base">
+            <Form
+              form={form}
+              layout="vertical"
+              initialValues={{
+                status: '启用'
+              }}
+            >
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="name"
+                    label="服务名称"
+                    rules={[{ required: true, message: '请输入服务名称' }]}
+                  >
+                    <Input placeholder="请输入服务名称" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="category"
+                    label="服务分类"
+                    rules={[{ required: true, message: '请输入服务分类' }]}
+                  >
+                    <Select placeholder="请选择服务分类">
+                      <Option value="剪发">剪发</Option>
+                      <Option value="染发">染发</Option>
+                      <Option value="烫发">烫发</Option>
+                      <Option value="护理">护理</Option>
+                      <Option value="造型">造型</Option>
+                      <Option value="其他">其他</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item
+                    name="price"
+                    label="普通价格"
+                    rules={[{ required: true, message: '请输入普通价格' }]}
+                  >
+                    <InputNumber
+                      placeholder="请输入价格"
+                      min={0}
+                      precision={2}
+                      style={{ width: '100%' }}
+                      addonAfter="元"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="vip_price"
+                    label="VIP价格"
+                  >
+                    <InputNumber
+                      placeholder="请输入价格"
+                      min={0}
+                      precision={2}
+                      style={{ width: '100%' }}
+                      addonAfter="元"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="diamond_price"
+                    label="钻石价格"
+                  >
+                    <InputNumber
+                      placeholder="请输入价格"
+                      min={0}
+                      precision={2}
+                      style={{ width: '100%' }}
+                      addonAfter="元"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
               <Form.Item
-                name="name"
-                label="服务名称"
-                rules={[{ required: true, message: '请输入服务名称' }]}
+                name="status"
+                label="状态"
+                rules={[{ required: true, message: '请选择状态' }]}
               >
-                <Input placeholder="请输入服务名称" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="category"
-                label="服务分类"
-                rules={[{ required: true, message: '请输入服务分类' }]}
-              >
-                <Select placeholder="请选择服务分类">
-                  <Option value="剪发">剪发</Option>
-                  <Option value="染发">染发</Option>
-                  <Option value="烫发">烫发</Option>
-                  <Option value="护理">护理</Option>
-                  <Option value="造型">造型</Option>
-                  <Option value="其他">其他</Option>
+                <Select placeholder="请选择状态">
+                  <Option value="启用">启用</Option>
+                  <Option value="禁用">禁用</Option>
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="price"
-                label="普通价格"
-                rules={[{ required: true, message: '请输入普通价格' }]}
-              >
-                <InputNumber
-                  placeholder="请输入价格"
-                  min={0}
-                  precision={2}
-                  style={{ width: '100%' }}
-                  addonAfter="元"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="vip_price"
-                label="VIP价格"
-              >
-                <InputNumber
-                  placeholder="请输入价格"
-                  min={0}
-                  precision={2}
-                  style={{ width: '100%' }}
-                  addonAfter="元"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="diamond_price"
-                label="钻石价格"
-              >
-                <InputNumber
-                  placeholder="请输入价格"
-                  min={0}
-                  precision={2}
-                  style={{ width: '100%' }}
-                  addonAfter="元"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item
-            name="status"
-            label="状态"
-            rules={[{ required: true, message: '请选择状态' }]}
-          >
-            <Select placeholder="请选择状态">
-              <Option value="启用">启用</Option>
-              <Option value="禁用">禁用</Option>
-            </Select>
-          </Form.Item>
-        </Form>
+            </Form>
+          </Tabs.TabPane>
+          <Tabs.TabPane tab="员工提成" key="commission">
+            <Table
+              rowKey="employee_id"
+              columns={[
+                { title: '姓名', dataIndex: 'name' },
+                { title: '手机号', dataIndex: 'phone' },
+                {
+                  title: '提成比例(%)',
+                  dataIndex: 'commission',
+                  render: (value, _record, idx) => (
+                    
+                    <InputNumber
+                      min={0}
+                      max={100}
+                      value={value}
+                      onChange={val => handleCommissionChange(idx, val as number)}
+                      style={{ width: 100 }}
+                    />
+                  )
+                }
+              ]}
+              dataSource={employeeCommissions}
+              loading={commissionLoading}
+              pagination={false}
+            />
+            <Button type="primary" onClick={saveCommissions} style={{ marginTop: 16 }}>保存提成设置</Button>
+          </Tabs.TabPane>
+        </Tabs>
       </Modal>
     </div>
   )

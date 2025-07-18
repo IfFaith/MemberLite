@@ -59,10 +59,18 @@ const Reports: React.FC = () => {
     dayjs().startOf('month'),
     dayjs().endOf('month')
   ])
+  const [activeTab, setActiveTab] = useState('summary')
+  const [employeeCommissionData, setEmployeeCommissionData] = useState<any[]>([])
 
   useEffect(() => {
     loadData()
   }, [dateRange])
+
+  useEffect(() => {
+    if (activeTab === 'commission') {
+      fetchEmployeeCommissionReport()
+    }
+  }, [activeTab])
 
   const loadData = async () => {
     try {
@@ -108,6 +116,22 @@ const Reports: React.FC = () => {
 
   const handleExport = () => {
     toast.info('导出功能开发中...')
+  }
+
+  const fetchEmployeeCommissionReport = async (dateRange: any = {}) => {
+    const result = await window.electronAPI.getEmployeeCommissionsReport(dateRange)
+    console.log(result)
+    if (result.success && result.data) {
+      setEmployeeCommissionData(result.data)
+    }
+  }
+
+  const onDateChange = (dates: any, dateStrings: [string, string]) => {
+    if (dates) {
+      fetchEmployeeCommissionReport({ startDate: dateStrings[0], endDate: dateStrings[1] })
+    } else {
+      fetchEmployeeCommissionReport()
+    }
   }
 
   const transactionColumns = [
@@ -207,6 +231,31 @@ const Reports: React.FC = () => {
     }
   ]
 
+  const employeeCommissionColumns = [
+    { title: '员工姓名', dataIndex: 'name', key: 'name' },
+    {
+        title: '项目提成',
+        dataIndex: 'project_commission',
+        key: 'project_commission',
+        render: (value: number) => `¥${value?.toFixed(2) || 0}`
+    },
+    {
+        title: '充值提成',
+        dataIndex: 'recharge_commission',
+        key: 'recharge_commission',
+        render: (value: number) => `¥${value?.toFixed(2) || 0}`
+    },
+    {
+        title: '总提成',
+        key: 'total_commission',
+        render: (_: any, record: any) => {
+            const total = (record.project_commission || 0) + (record.recharge_commission || 0)
+            return `¥${total.toFixed(2)}`
+        }
+    },
+    { title: '服务次数', dataIndex: 'service_count', key: 'service_count' }
+  ]
+
   return (
     <div className="page-container">
       <h1>统计报表</h1>
@@ -279,8 +328,8 @@ const Reports: React.FC = () => {
       </Row>
 
       {/* 详细报表 */}
-      <Tabs defaultActiveKey="overview">
-        <TabPane tab="统计概览" key="overview">
+      <Tabs activeKey={activeTab} onChange={setActiveTab}>
+        <TabPane tab="消费统计" key="summary">
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
               <Card title="交易统计" loading={loading}>
@@ -364,6 +413,16 @@ const Reports: React.FC = () => {
               scroll={{ x: 1000 }}
             />
           </Card>
+        </TabPane>
+
+        <TabPane tab="员工提成" key="commission">
+          <RangePicker onChange={onDateChange} style={{ marginBottom: 16 }} />
+          <Table
+            columns={employeeCommissionColumns}
+            dataSource={employeeCommissionData}
+            rowKey="employee_id"
+            bordered
+          />
         </TabPane>
       </Tabs>
     </div>

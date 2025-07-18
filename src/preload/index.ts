@@ -19,6 +19,17 @@ const api = {
   addService: (service: any) => ipcRenderer.invoke('add-service', service),
   updateService: (id: number, service: any) => ipcRenderer.invoke('update-service', id, service),
   deleteService: (id: number) => ipcRenderer.invoke('delete-service', id),
+  getEmployeeCommissionsReport: (dateRange: any[]) =>
+    ipcRenderer.invoke('get-employee-commissions-report', dateRange),
+
+  // 员工管理
+  getEmployees: () => ipcRenderer.invoke('get-employees'),
+  addEmployee: (employee) => ipcRenderer.invoke('add-employee', employee),
+  updateEmployee: (id, employee) => ipcRenderer.invoke('update-employee', id, employee),
+  deleteEmployee: (id) => ipcRenderer.invoke('delete-employee', id),
+  getProjectCommissions: (projectId) => ipcRenderer.invoke('get-project-commissions', projectId),
+  setProjectCommission: (commissionData) =>
+    ipcRenderer.invoke('set-project-commission', commissionData),
 
   // 交易记录
   getTransactions: (filters?: any) => ipcRenderer.invoke('get-transactions', filters),
@@ -32,9 +43,11 @@ const api = {
   getStatistics: (dateRange?: any) => ipcRenderer.invoke('get-statistics', dateRange),
 
   // 数据管理
+  openDataDirectory: () => ipcRenderer.invoke('open-data-directory'),
   backupDatabase: () => ipcRenderer.invoke('backup-database'),
   getBackupFiles: () => ipcRenderer.invoke('get-backup-files'),
-  restoreDatabase: (backupFilePath: string) => ipcRenderer.invoke('restore-database', backupFilePath),
+  restoreDatabase: (backupFilePath: string) =>
+    ipcRenderer.invoke('restore-database', backupFilePath),
   deleteBackup: (backupFilePath: string) => ipcRenderer.invoke('delete-backup', backupFilePath),
 
   // 通知功能

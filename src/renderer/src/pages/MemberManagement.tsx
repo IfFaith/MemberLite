@@ -50,6 +50,7 @@ interface Consumption {
   service_id: number // 服务id
   service_name: string // 服务名称
   transaction_type: string //交易类型
+  operator_name: string // 操作员姓名
 }
 
 const MemberManagement: React.FC = () => {
@@ -324,6 +325,12 @@ const MemberManagement: React.FC = () => {
       title: '服务类型',
       dataIndex: 'service_name',
       key: 'service_name',
+      width: 120
+    },
+    {
+      title: '操作员',
+      dataIndex: 'operator_name',
+      key: 'operator_name',
       width: 120
     },
     {

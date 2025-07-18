@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Card, 
-  Form, 
-  Select, 
-  InputNumber, 
-  Button, 
-  Row, 
-  Col, 
-  Descriptions,
-  Alert,
-  Input
-} from 'antd'
+import { Card, Form, Select, InputNumber, Button, Row, Col, Descriptions, Alert, Input } from 'antd'
 import { WalletOutlined, UserOutlined } from '@ant-design/icons'
 import { toast } from '../components/Toast'
 
@@ -42,10 +31,18 @@ const Recharge: React.FC = () => {
   // const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
+  const [employees, setEmployees] = useState<any[]>([])
 
   useEffect(() => {
     loadMembers()
     // loadRechargeRecords()
+    const fetchEmployees = async () => {
+      const result = await window.electronAPI.getEmployees()
+      if (result.success && result.data) {
+        setEmployees(result.data)
+      }
+    }
+    fetchEmployees()
   }, [])
 
   const loadMembers = async () => {
@@ -79,7 +76,7 @@ const Recharge: React.FC = () => {
   // }
 
   const handleMemberChange = (memberId: number) => {
-    const member = members.find(m => m.id === memberId)
+    const member = members.find((m) => m.id === memberId)
     setSelectedMember(member || null)
     form.setFieldsValue({ amount: undefined })
   }
@@ -87,7 +84,7 @@ const Recharge: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      
+
       if (!selectedMember) {
         toast.error('请选择会员')
         return
@@ -103,7 +100,7 @@ const Recharge: React.FC = () => {
         memberId: selectedMember.id,
         amount: values.amount,
         paymentMethod: values.paymentMethod || '现金',
-        operator: values.operator || '系统',
+        operatorId: values.operator,
         remark: values.remark || ''
       })
 
@@ -127,7 +124,7 @@ const Recharge: React.FC = () => {
   return (
     <div className="page-container">
       <h1>会员充值</h1>
-      
+
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={12}>
           <Card title="充值信息" loading={loading}>
@@ -137,7 +134,7 @@ const Recharge: React.FC = () => {
               onFinish={handleSubmit}
               initialValues={{
                 paymentMethod: '现金',
-                operator: '系统'
+                operator: ''
               }}
             >
               <Form.Item
@@ -152,7 +149,7 @@ const Recharge: React.FC = () => {
                   onChange={handleMemberChange}
                   loading={loading}
                 >
-                  {members.map(member => (
+                  {members.map((member) => (
                     <Option key={member.id} value={member.id}>
                       {member.name} ({member.phone}) - 余额: ¥{member.balance.toFixed(2)}
                     </Option>
@@ -194,13 +191,14 @@ const Recharge: React.FC = () => {
               <Form.Item
                 name="operator"
                 label="操作员"
-                rules={[{ required: true, message: '请输入操作员' }]}
+                rules={[{ required: true, message: '请选择操作员' }]}
               >
                 <Select placeholder="请选择操作员">
-                  <Option value="系统">系统</Option>
-                  <Option value="张三">张三</Option>
-                  <Option value="李四">李四</Option>
-                  <Option value="王五">王五</Option>
+                  {employees.map((emp) => (
+                    <Select.Option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
 
@@ -209,9 +207,9 @@ const Recharge: React.FC = () => {
               </Form.Item>
 
               <Form.Item>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
+                <Button
+                  type="primary"
+                  htmlType="submit"
                   icon={<WalletOutlined />}
                   loading={loading}
                   disabled={!selectedMember}
@@ -253,7 +251,10 @@ const Recharge: React.FC = () => {
                   <div>
                     <p>会员：{selectedMember.name}</p>
                     <p>当前余额：¥{selectedMember.balance.toFixed(2)}</p>
-                    <p>充值后余额：¥{(selectedMember.balance + (form.getFieldValue('amount') || 0)).toFixed(2)}</p>
+                    <p>
+                      充值后余额：¥
+                      {(selectedMember.balance + (form.getFieldValue('amount') || 0)).toFixed(2)}
+                    </p>
                   </div>
                 }
                 type="info"
@@ -267,4 +268,4 @@ const Recharge: React.FC = () => {
   )
 }
 
-export default Recharge 
+export default Recharge
